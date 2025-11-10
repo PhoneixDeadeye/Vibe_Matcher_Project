@@ -1,0 +1,17 @@
+# Vibe Matcher Project - Requirements
+
+# Core Dependencies
+pinecone>=7.3.0
+google-generativeai>=0.8.0
+python-dotenv>=1.0.0
+
+# Data Processing
+pandas>=2.3.0
+numpy>=1.26.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# Jupyter (for notebook support)
+jupyter>=1.0.0
+ipykernel>=6.29.0
