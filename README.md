@@ -1,21 +1,22 @@
 # Vibe Matcher Project
 
-A semantic search system for fashion products using **Google Gemini embeddings** and **Pinecone vector database**. This project demonstrates how to match user queries (vibes) with product descriptions using normalized embeddings and cosine similarity.
+A semantic search system for fashion products using **Google Gemini embeddings** and **Pinecone vector database** with gRPC. This project demonstrates how to match user queries (vibes) with product descriptions using normalized embeddings and cosine similarity.
 
 ## 🚀 Features
 
 - **Gemini Embeddings**: Uses Google's `text-embedding-004` model (768 dimensions)
 - **Vector Normalization**: All embeddings normalized to unit length (L2 norm = 1.0)
-- **Pinecone Integration**: Serverless vector database with cosine similarity
+- **Pinecone gRPC Integration**: High-performance serverless vector database with cosine similarity
 - **Semantic Search**: Match abstract queries to specific fashion products
-- **Performance Metrics**: Tracks latency and similarity scores
-- **Visualization**: Bar charts showing query latency
+- **Performance Metrics**: Tracks latency, similarity scores, and match quality
+- **Rich Visualization**: Dual plots showing match scores and search speed with quality thresholds
 
 ## 📋 Requirements
 
-- Python 3.11+
+- Python 3.8+
 - Google Gemini API key
 - Pinecone API key
+- Jupyter Notebook or VS Code with Python extension
 
 ## 🔧 Installation
 
@@ -29,25 +30,25 @@ A semantic search system for fashion products using **Google Gemini embeddings**
    ```bash
    pip install -r requirements.txt
    ```
+   
+   The `requirements.txt` includes:
+   - `pinecone[grpc]>=7.3.0` - Pinecone vector database with gRPC support
+   - `google-generativeai` - Google Gemini API
+   - `python-dotenv` - Environment variable management
+   - `pandas` - Data manipulation
+   - `numpy` - Numerical operations
+   - `matplotlib` - Visualization
+   - `tabulate>=0.9.0` - Markdown table formatting
 
 3. **Set up API keys**
    
-   Create a `.env` file in the project root:
+   Create a `.env` file in the project root directory:
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
    PINECONE_API_KEY=your_pinecone_api_key_here
    ```
 
-   Or set environment variables:
-   ```bash
-   # Windows (PowerShell)
-   $env:GEMINI_API_KEY="your_gemini_api_key_here"
-   $env:PINECONE_API_KEY="your_pinecone_api_key_here"
-   
-   # Linux/Mac
-   export GEMINI_API_KEY="your_gemini_api_key_here"
-   export PINECONE_API_KEY="your_pinecone_api_key_here"
-   ```
+   The notebook will automatically load these from the `.env` file.
 
 ## 🎯 Usage
 
@@ -55,17 +56,48 @@ Open and run `vibe_check.ipynb` in Jupyter Notebook or VS Code:
 
 ```bash
 jupyter notebook vibe_check.ipynb
+# or open in VS Code
 ```
+
+**Important**: Run cells sequentially from top to bottom.
 
 ### Notebook Structure
 
-1. **Cell 1**: Install dependencies (Pinecone, Google Generative AI, pandas, matplotlib)
-2. **Cell 2**: Setup API keys and initialize clients
-3. **Cell 3**: Define product dataset (15 fashion items with descriptions and tags)
-4. **Cell 4**: Create embedding function with vector normalization
-5. **Cell 5**: Create Pinecone index and upsert normalized embeddings
-6. **Cell 6**: Define search function with cosine similarity
-7. **Cell 7**: Run tests and evaluate performance
+The notebook contains 6 cells that should be executed in order:
+
+1. **Cell 1: Setup & API Keys**
+   - Imports all required libraries
+   - Loads API keys from `.env` file using relative path
+   - Initializes Gemini and Pinecone gRPC clients
+   - Verifies API connectivity
+
+2. **Cell 2: Define Product Data**
+   - Creates a DataFrame with 15 fashion products
+   - Each product has name, description, and vibe tags
+   - Products span diverse styles (boho, streetwear, formal, cozy, etc.)
+
+3. **Cell 3: Create Embedding Functions**
+   - `get_gemini_embedding()`: Generates 768-dimensional embeddings
+   - `normalize_vector()`: Normalizes vectors to unit length (L2 norm = 1.0)
+   - Tests embedding generation and normalization
+
+4. **Cell 4: Create & Populate Pinecone Index**
+   - Creates/recreates the `vibe-matcher-gemini-cosine` index
+   - Generates embeddings for all products (~9-14 seconds)
+   - Uploads normalized vectors to Pinecone
+   - Displays progress with checkmarks and timing
+
+5. **Cell 5: Create Search Function**
+   - `find_vibe_matches_pinecone()`: Searches for similar products
+   - Returns top N matches with similarity scores
+   - Handles edge cases (no matches, low scores)
+
+6. **Cell 6: Test & Evaluate**
+   - Runs 3 test queries with different vibes
+   - Measures search latency and similarity scores
+   - Classifies matches as Strong Match (≥0.70), Good Match (≥0.55), or No Match
+   - Generates visualizations with match scores and search speed
+   - Displays results in markdown table format
 
 ## 🔍 How It Works
 
@@ -121,42 +153,66 @@ The project includes 15 curated fashion products across different styles:
 ## 🎨 Example Queries
 
 ```python
-# Abstract style queries
-"energetic urban chic"           # → Streetwear Graphic Hoodie
-"something cozy for a cold night" # → Cozy Cable-Knit Sweater
-"what to wear to a summer wedding" # → Tailored Linen Suit
+# Test queries included in the notebook
+"energetic urban chic"              # → Streetwear Graphic Hoodie, Techwear Cargo Pants
+"something cozy for a cold night"   # → Cozy Cable-Knit Sweater, Mulberry Silk Pajama Set
+"a formal outfit for hot weather"   # → Tailored Linen Suit
 
-# Specific product queries (higher scores)
-"hoodie for streetwear"           # → Score: 0.72+
-"cozy winter sweater"             # → Score: 0.72+
-"linen suit for summer wedding"   # → Score: 0.77+
+# You can add your own queries
+results = find_vibe_matches_pinecone(
+    query="gothic evening wear",
+    index=index,
+    top_n=3,
+    no_match_threshold=0.55
+)
 ```
+
+### Match Quality Thresholds
+- 🔥 **Strong Match**: Score ≥ 0.70
+- 👍 **Good Match**: Score ≥ 0.55 and < 0.70
+- ❌ **No Match**: Score < 0.55
 
 ## 📈 Performance
 
-- **Average Latency**: ~900-1200ms per query
-- **Index Size**: 15 vectors (768 dimensions each)
-- **Similarity Threshold**: 0.7 (configurable)
-- **Success Rate**: Varies based on query specificity
+- **Index Creation**: ~5-6 seconds
+- **Embedding Generation**: ~9-14 seconds for 15 products (~0.6s per item)
+- **Search Latency**: ~1.8-2.2 seconds per query
+- **Total Setup Time**: ~14-20 seconds (one-time operation)
+- **Vector Dimensions**: 768 (native Gemini embedding size)
+- **Match Accuracy**: Dependent on query specificity and product descriptions
 
-### Query Tips
-- **Specific queries** ("hoodie for streetwear") → Higher scores (0.70-0.80)
-- **Abstract queries** ("energetic urban chic") → Lower scores (0.50-0.65)
-- Include product types and style keywords for best results
+### Typical Results
+- **Abstract vibes** ("energetic urban chic"): Good Match (0.55-0.70)
+- **Specific descriptions** ("cozy for cold night"): Strong Match (0.70+)
+- **Formal queries** ("formal hot weather"): Strong Match (0.70+)
+
+### Platform Notes
+- ✅ **Windows**: Fully tested with Pinecone gRPC v7.3.0
+- ✅ **Linux/Mac**: Compatible (standard installation)
+- 💡 **Tip**: Use `pinecone[grpc]` package for best performance
 
 ## 🛠️ Configuration
 
 ### Pinecone Index Settings
 - **Name**: `vibe-matcher-gemini-cosine`
-- **Dimension**: 768 (native Gemini dimension)
+- **Dimension**: 768 (native Gemini embedding dimension)
 - **Metric**: Cosine similarity
-- **Cloud**: AWS (us-east-1)
-- **Type**: Serverless
+- **Spec**: Serverless (AWS us-east-1)
+- **Connection**: gRPC for high performance
 
 ### Embedding Model
 - **Model**: `models/text-embedding-004`
-- **Provider**: Google Gemini
-- **Output**: 768-dimensional vectors (native, not reduced)
+- **Provider**: Google Gemini API
+- **Task Types**: 
+  - `RETRIEVAL_DOCUMENT` for product embeddings (with optional title)
+  - `RETRIEVAL_QUERY` for search queries
+- **Output**: 768-dimensional vectors (normalized to unit length)
+
+### Search Configuration
+- **Default Top Results**: 3 matches
+- **Strong Match Threshold**: 0.70
+- **Good Match Threshold**: 0.55
+- **Adjustable**: Modify thresholds in Cell 6 based on your use case
 
 ## 🔐 Security
 
@@ -166,28 +222,62 @@ The project includes 15 curated fashion products across different styles:
 
 ## 📝 Notes
 
-- **Normalization**: All vectors are normalized before upserting to Pinecone and before querying
-- **Cosine Similarity**: With normalized vectors, cosine similarity = dot product
-- **Threshold Tuning**: Adjust `no_match_threshold` based on your use case (0.6-0.8 typical)
+- **Vector Normalization**: All vectors are normalized to unit length (L2 norm = 1.0) before storage and search
+- **Cosine Similarity**: With normalized vectors, cosine similarity equals the dot product
+- **Threshold Tuning**: Adjust match thresholds (0.55-0.70) based on your domain and requirements
+- **gRPC Performance**: Using `pinecone[grpc]` provides faster connections and lower latency than REST API
+- **Relative Paths**: The notebook uses relative paths for `.env` file for better portability across systems
+- **Windows Compatibility**: Fixed gRPC connection issues specific to Windows environments
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **"PINECONE_API_KEY not found"**
+   - Ensure `.env` file is in the project root directory
+   - Check that variable names match exactly: `GEMINI_API_KEY` and `PINECONE_API_KEY`
+
+2. **"Module not found" errors**
+   - Run `pip install -r requirements.txt`
+   - Ensure you're using `pinecone[grpc]>=7.3.0` (not older `pinecone-client`)
+
+3. **Index creation hangs or times out**
+   - This was fixed in v7.3.0 with proper gRPC support
+   - If still occurring, check your internet connection and Pinecone service status
+
+4. **Low similarity scores**
+   - Try more specific queries with product types and style keywords
+   - Consider enriching product descriptions with more detail
+   - Adjust the `no_match_threshold` parameter (default: 0.7)
 
 ## 🤝 Contributing
 
 Contributions welcome! Feel free to:
 - Add more fashion products to the dataset
-- Experiment with different embedding models
-- Improve query preprocessing
-- Add more evaluation metrics
+- Experiment with different embedding models or dimensions
+- Improve query preprocessing and enrichment
+- Add more evaluation metrics and visualizations
+- Optimize performance and latency
+- Test on different platforms and environments
 
 ## 📄 License
 
 This project is open source and available under the MIT License.
 
-## 🔗 Links
+## � Acknowledgments
 
-- [Google Gemini API](https://ai.google.dev/)
+- **Google Gemini API** for powerful text embeddings
+- **Pinecone** for scalable vector search infrastructure
+- **Python Data Science Stack** (pandas, numpy, matplotlib)
+
+## �🔗 Links
+
+- [Google Gemini API Documentation](https://ai.google.dev/)
 - [Pinecone Documentation](https://docs.pinecone.io/)
-- [Repository](https://github.com/PhoneixDeadeye/Vibe_Matcher_Project)
+- [Project Repository](https://github.com/PhoneixDeadeye/Vibe_Matcher_Project)
+- [Pinecone gRPC Installation Guide](https://docs.pinecone.io/guides/get-started/quickstart)
 
 ---
 
-**Built with ❤️ using Google Gemini and Pinecone**
+**Built with ❤️ using Google Gemini embeddings and Pinecone vector database**
+
